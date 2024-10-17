@@ -34,21 +34,13 @@ repos:
     hooks:
       - id: actionlint
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-colorama, types-setuptools]
-        args: [--pretty, --show-error-codes]
-        exclude: ^tests/
-
   - repo: https://github.com/tox-dev/pyproject-fmt
     rev: 2.2.4
     hooks:
       - id: pyproject-fmt
 
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.20.2
+    rev: v0.21
     hooks:
       - id: validate-pyproject
 
