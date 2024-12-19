@@ -1,24 +1,20 @@
 # Release checklist
 
-Jazzband guidelines: https://jazzband.co/about/releases
-
 - [ ] Get `main` to the appropriate code release state.
-      [GitHub Actions](https://github.com/jazzband/prettytable/actions) should pass on
-      `main`.
-      [![GitHub Actions status](https://github.com/jazzband/prettytable/workflows/Test/badge.svg)](https://github.com/jazzband/prettytable/actions)
+      [GitHub Actions](https://github.com/hugovk/tinytext/actions) should be running
+      cleanly for all merges to `main`.
+      [![GitHub Actions status](https://github.com/hugovk/tinytext/workflows/Test/badge.svg)](https://github.com/hugovk/tinytext/actions)
 
 - [ ] Edit release draft, adjust text if needed:
-      https://github.com/jazzband/prettytable/releases
+      https://github.com/hugovk/tinytext/releases
 
 - [ ] Check next tag is correct, amend if needed
 
 - [ ] Publish release
 
-- [ ] Once
-      [GitHub Actions](https://github.com/jazzband/prettytable/actions/workflows/release.yml)
-      has built and uploaded distributions, check files at
-      [Jazzband](https://jazzband.co/projects/prettytable) and release to
-      [PyPI](https://pypi.org/pypi/prettytable)
+- [ ] Check the tagged
+      [GitHub Actions build](https://github.com/hugovk/tinytext/actions/workflows/deploy.yml)
+      has deployed to [PyPI](https://pypi.org/project/tinytext/#history)
 
 - [ ] Check installation:
 
