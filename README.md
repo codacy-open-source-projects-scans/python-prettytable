@@ -29,11 +29,11 @@ PrettyTable lets you print tables in an attractive ASCII form:
 
 Install via pip:
 
-    python -m pip install -U prettytable
+    python3 -m pip install -U prettytable
 
 Install latest development version:
 
-    python -m pip install -U git+https://github.com/prettytable/prettytable
+    python3 -m pip install -U git+https://github.com/prettytable/prettytable
 
 Or from `requirements.txt`:
 
@@ -103,13 +103,10 @@ method, which takes two arguments - a string which is the name for the field the
 you are adding corresponds to, and a list or tuple which contains the column data:
 
 ```python
-table.add_column("City name",
-["Adelaide","Brisbane","Darwin","Hobart","Sydney","Melbourne","Perth"])
+table.add_column("City name", ["Adelaide", "Brisbane", "Darwin", "Hobart", "Sydney", "Melbourne", "Perth"])
 table.add_column("Area", [1295, 5905, 112, 1357, 2058, 1566, 5386])
-table.add_column("Population", [1158259, 1857594, 120900, 205556, 4336374, 3806092,
-1554769])
-table.add_column("Annual Rainfall",[600.5, 1146.4, 1714.7, 619.5, 1214.8, 646.9,
-869.4])
+table.add_column("Population", [1158259, 1857594, 120900, 205556, 4336374, 3806092, 1554769])
+table.add_column("Annual Rainfall",[600.5, 1146.4, 1714.7, 619.5, 1214.8, 646.9, 869.4])
 ```
 
 #### Mixing and matching
@@ -511,40 +508,53 @@ PrettyTable has a number of style options which control various aspects of how t
 are displayed. You have the freedom to set each of these options individually to
 whatever you prefer. The `set_style` method just does this automatically for you.
 
-The options are:
+Table-specific options are:
 
-| Option                       | Details                                                                                                                                                                                          |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `border`                     | A Boolean option (must be `True` or `False`). Controls whether a border is drawn inside and around the table.                                                                                    |
-| `preserve_internal_border`   | A Boolean option (must be `True` or `False`). Controls whether borders are still drawn within the table even when `border=False`.                                                                |
-| `header`                     | A Boolean option (must be `True` or `False`). Controls whether the first row of the table is a header showing the names of all the fields.                                                       |
-| `hrules`                     | Controls printing of horizontal rules after rows. Allowed values: `FRAME`, `HEADER`, `ALL`, `NONE`.                                                                                              |
-| `HEADER`, `ALL`, `NONE`      | These are variables defined inside the `prettytable` module so make sure you import them or use `prettytable.FRAME` etc.                                                                         |
-| `vrules`                     | Controls printing of vertical rules between columns. Allowed values: `FRAME`, `ALL`, `NONE`.                                                                                                     |
-| `int_format`                 | A string which controls the way integer data is printed. This works like: `print("%<int_format>d" % data)`.                                                                                      |
-| `float_format`               | A string which controls the way floating point data is printed. This works like: `print("%<float_format>f" % data)`.                                                                             |
-| `custom_format`              | A dictionary of field and callable. This allows you to set any format you want `pf.custom_format["my_col_int"] = lambda f, v: f"{v:,}"`. The type of the callable is `Callable[[str, Any], str]` |
-| `padding_width`              | Number of spaces on either side of column data (only used if left and right paddings are `None`).                                                                                                |
-| `left_padding_width`         | Number of spaces on left-hand side of column data.                                                                                                                                               |
-| `right_padding_width`        | Number of spaces on right-hand side of column data.                                                                                                                                              |
-| `vertical_char`              | Single character string used to draw vertical lines. Default: `\|`.                                                                                                                              |
-| `horizontal_char`            | Single character string used to draw horizontal lines. Default: `-`.                                                                                                                             |
-| `_horizontal_align_char`     | Single character string used to indicate column alignment in horizontal lines. Default: `:` for Markdown, otherwise `None`.                                                                      |
-| `junction_char`              | Single character string used to draw line junctions. Default: `+`.                                                                                                                               |
-| `top_junction_char`          | Single character string used to draw top line junctions. Default: `junction_char`.                                                                                                               |
-| `bottom_junction_char`       | single character string used to draw bottom line junctions. Default: `junction_char`.                                                                                                            |
-| `right_junction_char`        | Single character string used to draw right line junctions. Default: `junction_char`.                                                                                                             |
-| `left_junction_char`         | Single character string used to draw left line junctions. Default: `junction_char`.                                                                                                              |
-| `top_right_junction_char`    | Single character string used to draw top-right line junctions. Default: `junction_char`.                                                                                                         |
-| `top_left_junction_char`     | Single character string used to draw top-left line junctions. Default: `junction_char`.                                                                                                          |
-| `bottom_right_junction_char` | Single character string used to draw bottom-right line junctions. Default: `junction_char`.                                                                                                      |
-| `bottom_left_junction_char`  | Single character string used to draw bottom-left line junctions. Default: `junction_char`.                                                                                                       |
-| `min_table_width`            | Number of characters used for the minimum total table width.                                                                                                                                     |
-| `max_table_width`            | Number of characters used for the maximum total table width.                                                                                                                                     |
-| `max_width`                  | Number of characters used for maximum width of a column.                                                                                                                                         |
-| `min_width`                  | Number of characters used for minimum width of a column.                                                                                                                                         |
-| `use_header_width`           | A Boolean option (must be `True` or `False`). Controls whether the width of the header is used for computing column width. Default: `True`.                                                      |
-| `break_on_hyphens`           | Whether long lines are wrapped on hyphens. Default: `True`.                                                                                                                                      |
+| Option                       | Details                                                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HEADER`, `ALL`, `NONE`      | These are variables defined inside the `prettytable` module so make sure you import them or use `prettytable.FRAME` etc.                    |
+| `_horizontal_align_char`     | Single character string used to indicate column alignment in horizontal lines. Default: `:` for Markdown, otherwise `None`.                 |
+| `border`                     | A Boolean option (must be `True` or `False`). Controls whether a border is drawn inside and around the table.                               |
+| `bottom_junction_char`       | single character string used to draw bottom line junctions. Default: `junction_char`.                                                       |
+| `bottom_left_junction_char`  | Single character string used to draw bottom-left line junctions. Default: `junction_char`.                                                  |
+| `bottom_right_junction_char` | Single character string used to draw bottom-right line junctions. Default: `junction_char`.                                                 |
+| `break_on_hyphens`           | Whether long lines are wrapped on hyphens. Default: `True`.                                                                                 |
+| `header`                     | A Boolean option (must be `True` or `False`). Controls whether the first row of the table is a header showing the names of all the fields.  |
+| `horizontal_char`            | Single character string used to draw horizontal lines. Default: `-`.                                                                        |
+| `hrules`                     | Controls printing of horizontal rules after rows. Allowed values: `FRAME`, `HEADER`, `ALL`, `NONE`.                                         |
+| `junction_char`              | Single character string used to draw line junctions. Default: `+`.                                                                          |
+| `left_junction_char`         | Single character string used to draw left line junctions. Default: `junction_char`.                                                         |
+| `left_padding_width`         | Number of spaces on left-hand side of column data.                                                                                          |
+| `max_table_width`            | Number of characters used for the maximum total table width.                                                                                |
+| `min_table_width`            | Number of characters used for the minimum total table width.                                                                                |
+| `padding_width`              | Number of spaces on either side of column data (only used if left and right paddings are `None`).                                           |
+| `preserve_internal_border`   | A Boolean option (must be `True` or `False`). Controls whether borders are still drawn within the table even when `border=False`.           |
+| `right_junction_char`        | Single character string used to draw right line junctions. Default: `junction_char`.                                                        |
+| `right_padding_width`        | Number of spaces on right-hand side of column data.                                                                                         |
+| `top_junction_char`          | Single character string used to draw top line junctions. Default: `junction_char`.                                                          |
+| `top_left_junction_char`     | Single character string used to draw top-left line junctions. Default: `junction_char`.                                                     |
+| `top_right_junction_char`    | Single character string used to draw top-right line junctions. Default: `junction_char`.                                                    |
+| `use_header_width`           | A Boolean option (must be `True` or `False`). Controls whether the width of the header is used for computing column width. Default: `True`. |
+| `vertical_char`              | Single character string used to draw vertical lines. Default: `\|`.                                                                         |
+| `vrules`                     | Controls printing of vertical rules between columns. Allowed values: `FRAME`, `ALL`, `NONE`.                                                |
+
+For options that can be set individually for each column (`align`, `valign`,
+`custom_format`, `max_width`, `min_width`, `int_format`, `float_format`, `none_format`)
+you can either set a value, that applies to all columns or set a dict with column names
+and individual values.
+
+Column-specific options are:
+
+| Option          | Details                                                                                                                                                                                                                                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `align`         | Controls alignment of fields, one of "l", "c", or "r" or a dictionary with column and value.                                                                                                                                                                                                               |
+| `custom_format` | Set any format, by setting a function that gets the original value,the formatted representation and returns the new string. E.g. `pf.custom_format["my_col_int"] = lambda f, v: f"{v:,}"`. The type of the callable is `Callable[[str, Any], str]`. This also takes a dictionary with column and function. |
+| `float_format`  | A string which controls the way floating point data is printed or a dictionary with column and value. This works like: `print("%<float_format>f" % data)`.                                                                                                                                                 |
+| `int_format`    | A string which controls the way integer data is printed or a dictionary with column and value. This works like: `print("%<int_format>d" % data)`.                                                                                                                                                          |
+| `max_width`     | Number of characters used for maximum width of a column or a dictionary with column and value.                                                                                                                                                                                                             |
+| `min_width`     | Number of characters used for minimum width of a column or a dictionary with column and value.                                                                                                                                                                                                             |
+| `none_format`   | Representation of None values or a dictionary with column and value.                                                                                                                                                                                                                                       |
+| `valign`        | Controls vertical alignment of fields, one of "t", "m", or "b" or a dictionary with column and value.                                                                                                                                                                                                      |
 
 You can set the style options to your own settings in two ways:
 
@@ -594,6 +604,36 @@ between them, you could do this:
 ```python
 print(table)
 print(table.get_string(border=False))
+print(table)
+```
+
+#### Custom format example (with _colors_)
+
+The `custom_format` attribute allows you to define a function for custom cell value
+formatting. For example, the following code demonstrates how to apply a single function
+across all columns to display strings in `blue`, positive numbers in `green`, and
+negative numbers in `red`, all with a precision of two decimal places. Your custom
+function can also inspect the `field` parameter to apply field-specific formatting.
+
+```python
+from prettytable import PrettyTable
+from typing import Any
+from termcolor import colored
+
+def _colored(field: str, val: Any) -> str:
+    if isinstance(val, (int, float)):
+        if val >= 0:
+            return colored(f"{val:.2f}", "green")
+        return colored(f"{val:.2f}", "red")
+    elif isinstance(val, str):
+        return colored(val, "blue")
+    return f"{val}"
+
+table = PrettyTable(("Name", "Overtime"))
+table.custom_format = _colored
+
+for row in [["John Doe", 5.0], ["Jane Smith", -2.0]]:
+    table.add_row([row[0], row[1]])
 print(table)
 ```
 
@@ -761,10 +801,18 @@ new_table = old_table[0:5]
 
 ## Contributing
 
-After editing files, use the [Black](https://github.com/psf/black) linter to auto-format
+After editing files, use at least [Black](https://github.com/psf/black) to auto-format
 changed lines.
 
 ```sh
-python -m pip install black
-black prettytable*.py
+python3 -m pip install black
+black .
+```
+
+To run all pre-commit checks, linters, formatters (including Black), and tests use
+[tox](https://github.com/tox-dev/tox):
+
+```sh
+python3 -m pip install tox
+tox
 ```
