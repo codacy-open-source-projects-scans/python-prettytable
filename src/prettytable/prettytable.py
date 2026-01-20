@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Copyright (c) 2009-2014, Luke Maurits <luke@maurits.id.au>
 # All rights reserved.
 # With contributions from:
@@ -94,6 +92,41 @@ RowType: TypeAlias = list[Any]
 AlignType: TypeAlias = Literal["l", "c", "r"]
 VAlignType: TypeAlias = Literal["t", "m", "b"]
 HeaderStyleType: TypeAlias = Literal["cap", "title", "upper", "lower"] | None
+
+
+class ObservableDict(dict[str, Any]):
+    """A dictionary that notifies a callback when items are set or changed.
+
+    This dictionary subclass allows setting a callback function that will be
+    invoked whenever an item is set or its value changes. This is used to
+    maintain consistency between related format dictionaries.
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the observable dictionary.
+
+        Arguments:
+            *args: Positional arguments passed to dict.__init__
+            **kwargs: Keyword arguments passed to dict.__init__
+        """
+        super().__init__(*args, **kwargs)
+        self.callback = None
+
+    def __setitem__(self, key: str, value: Any):
+        """Set an item and trigger callback if value changed.
+
+        Sets the item in the dictionary and calls the callback function
+        (if set) with the key, old value, and new value when the value
+        actually changes.
+
+        Arguments:
+            key: The dictionary key
+            value: The new value to set
+        """
+        old_value = self.get(key)
+        if self.callback is not None and old_value != value:
+            self.callback(key, old_value, value)
+        super().__setitem__(key, value)
 
 
 class OptionsType(TypedDict):
@@ -281,13 +314,6 @@ class PrettyTable:
         self._field_names: list[str] = []
         self._rows: list[RowType] = []
         self._dividers: list[bool] = []
-        self.align = {}
-        self.valign = {}
-        self.max_width = {}
-        self.min_width = {}
-        self.int_format = {}
-        self.float_format = {}
-        self.custom_format = {}
         self._style = None
 
         # Options
@@ -342,7 +368,31 @@ class PrettyTable:
             "break_on_hyphens",
         ]
 
-        self._none_format: dict[str, str | None] = {}
+        self._none_format: dict[str, str | None] = ObservableDict()
+        self._none_format.callback = self._remove_custom_format_callback
+
+        self._int_format: dict[str, str | None] = ObservableDict()
+        self._int_format.callback = self._remove_custom_format_callback
+
+        self._float_format: dict[str, str | None] = ObservableDict()
+        self._float_format.callback = self._remove_custom_format_callback
+
+        self._custom_format: dict[str, Callable[[str, Any], str]] = ObservableDict()
+        self._custom_format.callback = self._custom_format_callback
+
+        self._align: dict[str, str | None] = ObservableDict()
+        self._align[BASE_ALIGN_VALUE] = "c"
+        self._align.callback = self._align_callback
+
+        self._valign: dict[str, str | None] = ObservableDict()
+        self._valign.callback = self._valign_callback
+
+        self._max_width: dict[str, int | None] = ObservableDict()
+        self._max_width.callback = self._max_width_callback
+
+        self._min_width: dict[str, int | None] = ObservableDict()
+        self._min_width.callback = self._min_width_callback
+
         self._kwargs = {}
         if field_names:
             self.field_names = field_names
@@ -461,31 +511,25 @@ class PrettyTable:
             return text + excess * " "
         elif align == "r":
             return excess * " " + text
-        else:
-            if excess % 2:
-                # Uneven padding
-                # Put more space on right if text is of odd length...
-                if _str_block_width(text) % 2:
-                    return (excess // 2) * " " + text + (excess // 2 + 1) * " "
-                # and more space on left if text is of even length
-                else:
-                    return (excess // 2 + 1) * " " + text + (excess // 2) * " "
-                # Why distribute extra space this way?  To match the behaviour of
-                # the inbuilt str.center() method.
+        elif excess % 2:
+            # Uneven padding
+            # Put more space on right if text is of odd length...
+            if _str_block_width(text) % 2:
+                return (excess // 2) * " " + text + (excess // 2 + 1) * " "
+            # and more space on left if text is of even length
             else:
-                # Equal padding on either side
-                return (excess // 2) * " " + text + (excess // 2) * " "
+                return (excess // 2 + 1) * " " + text + (excess // 2) * " "
+            # Why distribute extra space this way?  To match the behaviour of
+            # the inbuilt str.center() method.
+        else:
+            # Equal padding on either side
+            return (excess // 2) * " " + text + (excess // 2) * " "
 
     def __getattr__(self, name):
         if name == "rowcount":
             return len(self._rows)
         elif name == "colcount":
-            if self._field_names:
-                return len(self._field_names)
-            elif self._rows:
-                return len(self._rows[0])
-            else:
-                return 0
+            return len(self._field_names)
         else:
             raise AttributeError(name)
 
@@ -494,7 +538,6 @@ class PrettyTable:
         new.field_names = self.field_names
         for attr in self._options:
             setattr(new, "_" + attr, getattr(self, "_" + attr))
-        setattr(new, "_align", getattr(self, "_align"))
         if isinstance(index, slice):
             for row in self._rows[index]:
                 new.add_row(row)
@@ -700,7 +743,7 @@ class PrettyTable:
 
     def _validate_function(self, name, val):
         try:
-            assert hasattr(val, "__call__")
+            assert callable(val)
         except AssertionError:
             msg = f"Invalid value for {name}. Must be a function."
             raise ValueError(msg)
@@ -781,9 +824,7 @@ class PrettyTable:
 
         val - The alternative representation to be used for None values
         """
-        if not self._field_names:
-            self._none_format = {}
-        elif isinstance(val, str):
+        if isinstance(val, str):
             for field in self._field_names:
                 self._none_format[field] = None
             self._validate_none_format(val)
@@ -794,8 +835,7 @@ class PrettyTable:
                 self._validate_none_format(fval)
                 self._none_format[field] = fval
         else:
-            for field in self._field_names:
-                self._none_format[field] = None
+            self._none_format.clear()
 
     @property
     def field_names(self) -> list[str]:
@@ -837,6 +877,20 @@ class PrettyTable:
         else:
             self.valign = "t"
 
+    def _align_callback(self, field_name, old_value, new_value):
+        """Callback to call validators if dict attrs are modified.
+
+        This callback is triggered when a field is modified from align dict and
+        calls the validator for the new value.
+
+        Arguments:
+            field_name: Name of the field being modified
+            old_value: Previous value (unused)
+            new_value: New value (unused)
+
+        """
+        self._validate_align(new_value)
+
     @property
     def align(self) -> dict[str, AlignType]:
         """Controls alignment of fields
@@ -848,7 +902,6 @@ class PrettyTable:
     @align.setter
     def align(self, val: AlignType | dict[str, AlignType] | None) -> None:
         if isinstance(val, str):
-            self._validate_align(val)
             if not self._field_names:
                 self._align = {BASE_ALIGN_VALUE: val}
             else:
@@ -856,14 +909,26 @@ class PrettyTable:
                     self._align[field] = val
         elif isinstance(val, dict) and val:
             for field, fval in val.items():
-                self._validate_align(fval)
                 self._align[field] = fval
+        elif self._field_names:
+            for field in self._field_names:
+                self._align[field] = "c"
         else:
-            if not self._field_names:
-                self._align = {BASE_ALIGN_VALUE: "c"}
-            else:
-                for field in self._field_names:
-                    self._align[field] = "c"
+            self._align = {BASE_ALIGN_VALUE: "c"}
+
+    def _valign_callback(self, field_name, old_value, new_value):
+        """Callback to call validators if dict attrs are modified.
+
+        This callback is triggered when a field is modified from valign dict
+        and calls the validator for the new value.
+
+        Arguments:
+            field_name: Name of the field being modified
+            old_value: Previous value (unused)
+            new_value: New value (unused)
+
+        """
+        self._validate_valign(new_value)
 
     @property
     def valign(self) -> dict[str, VAlignType]:
@@ -876,18 +941,30 @@ class PrettyTable:
     @valign.setter
     def valign(self, val: VAlignType | dict[str, VAlignType] | None) -> None:
         if not self._field_names:
-            self._valign = {}
+            self._valign.clear()
         if isinstance(val, str):
-            self._validate_valign(val)
             for field in self._field_names:
                 self._valign[field] = val
         elif isinstance(val, dict) and val:
             for field, fval in val.items():
-                self._validate_valign(fval)
                 self._valign[field] = fval
         else:
             for field in self._field_names:
                 self._valign[field] = "t"
+
+    def _max_width_callback(self, field_name, old_value, new_value):
+        """Callback to call validators if dict attrs are modified.
+
+        This callback is triggered when a field is modified from max_width dict
+        and calls the validator for the new value.
+
+        Arguments:
+            field_name: Name of the field being modified
+            old_value: Previous value (unused)
+            new_value: New value (unused)
+
+        """
+        self._validate_option("max_width", new_value)
 
     @property
     def max_width(self) -> dict[str, int]:
@@ -900,15 +977,27 @@ class PrettyTable:
     @max_width.setter
     def max_width(self, val: int | dict[str, int] | None) -> None:
         if isinstance(val, int):
-            self._validate_option("max_width", val)
             for field in self._field_names:
                 self._max_width[field] = val
         elif isinstance(val, dict) and val:
             for field, fval in val.items():
-                self._validate_option("max_width", fval)
                 self._max_width[field] = fval
         else:
-            self._max_width = {}
+            self._max_width.clear()
+
+    def _min_width_callback(self, field_name, old_value, new_value):
+        """Callback to call validators if dict attrs are modified.
+
+        This callback is triggered when a field is modified from min_width dict
+        and calls the validator for the new value.
+
+        Arguments:
+            field_name: Name of the field being modified
+            old_value: Previous value (unused)
+            new_value: New value (unused)
+
+        """
+        self._validate_option("min_width", new_value)
 
     @property
     def min_width(self) -> dict[str, int]:
@@ -921,15 +1010,13 @@ class PrettyTable:
     @min_width.setter
     def min_width(self, val: int | dict[str, int] | None) -> None:
         if isinstance(val, int):
-            self._validate_option("min_width", val)
             for field in self._field_names:
                 self._min_width[field] = val
         elif isinstance(val, dict) and val:
             for field, fval in val.items():
-                self._validate_option("min_width", fval)
                 self._min_width[field] = fval
         else:
-            self._min_width = {}
+            self._min_width.clear()
 
     @property
     def min_table_width(self) -> int | None:
@@ -1179,7 +1266,7 @@ class PrettyTable:
                 self._validate_option("int_format", fval)
                 self._int_format[field] = fval
         else:
-            self._int_format = {}
+            self._int_format.clear()
 
     @property
     def float_format(self) -> dict[str, str]:
@@ -1200,7 +1287,41 @@ class PrettyTable:
                 self._validate_option("float_format", fval)
                 self._float_format[field] = fval
         else:
-            self._float_format = {}
+            self._float_format.clear()
+
+    def _remove_custom_format_callback(self, field_name, old_value, new_value):
+        """Callback to remove custom format when a field is removed from format dicts.
+
+        This callback is triggered when a field is removed from _none_format,
+        _int_format, or _float_format dictionaries, and removes the corresponding
+        entry from _custom_format if it exists.
+
+        Arguments:
+            field_name: Name of the field being removed
+            old_value: Previous value (unused)
+            new_value: New value (unused)
+        """
+        if field_name in self._custom_format:
+            del self._custom_format[field_name]
+
+    def _custom_format_callback(self, field_name, old_value, new_value):
+        """Callback to remove std formats when a field is removed from custom_format.
+
+        This callback is triggered when a field is removed from _custom_format
+        dictionary, and removes the corresponding entries from _float_format,
+        _int_format, and _none_format if they exist.
+
+        Arguments:
+            field_name: Name of the field being removed
+            old_value: Previous value (unused)
+            new_value: New value (unused)
+        """
+        if field_name in self._float_format:
+            del self._float_format[field_name]
+        if field_name in self._int_format:
+            del self._int_format[field_name]
+        if field_name in self._none_format:
+            del self._none_format[field_name]
 
     @property
     def custom_format(self) -> dict[str, Callable[[str, Any], str]]:
@@ -1215,13 +1336,24 @@ class PrettyTable:
         self,
         val: Callable[[str, Any], str] | dict[str, Callable[[str, Any], str]] | None,
     ):
+        """Set custom format for columns using callable functions.
+
+        Arguments:
+            val: Can be:
+                - None: Clears all custom formats
+                - dict: Dictionary mapping field names to callable functions
+                - callable: A single callable function applied to all fields
+
+        Raises:
+            TypeError: If val is not None, a dict, or a callable
+        """
         if val is None:
-            self._custom_format = {}
+            self._custom_format.clear()
         elif isinstance(val, dict):
-            for k, v in val.items():
-                self._validate_function(f"custom_value.{k}", v)
-            self._custom_format = val
-        elif hasattr(val, "__call__"):
+            for field, fval in val.items():
+                self._validate_function(f"custom_value.{field}", fval)
+                self._custom_format[field] = fval
+        elif callable(val):
             self._validate_function("custom_value", val)
             for field in self._field_names:
                 self._custom_format[field] = val
@@ -1870,7 +2002,7 @@ class PrettyTable:
     def _compute_table_width(self, options) -> int:
         if options["vrules"] == VRuleStyle.FRAME:
             table_width = 2
-        if options["vrules"] == VRuleStyle.ALL:
+        elif options["vrules"] == VRuleStyle.ALL:
             table_width = 1
         else:
             table_width = 0
@@ -2313,11 +2445,7 @@ class PrettyTable:
             value = "\n".join(lines)
             row[index] = value
 
-        row_height = 0
-        for c in row:
-            h = _get_size(c)[1]
-            if h > row_height:
-                row_height = h
+        row_height = max(_get_size(c)[1] for c in row)
 
         bits: list[list[str]] = []
         lpad, rpad = self._get_padding_widths(options)
@@ -2381,6 +2509,18 @@ class PrettyTable:
         return "\n".join(bits_str)
 
     def paginate(self, page_length: int = 58, line_break: str = "\f", **kwargs) -> str:
+        """Return string representation of table split into pages.
+
+        Arguments:
+
+        page_length - number of rows per page (default: 58)
+        line_break - string used to separate pages (default: "\f" form feed)
+        **kwargs - additional keyword arguments passed to get_string() method,
+            such as title, fields, header, border, etc.
+
+        The table is split into pages of the specified length, with each page
+        separated by the line_break character. All formatting options available
+        in get_string() can be used via kwargs."""
         pages: list[str] = []
         kwargs["start"] = kwargs.get("start", 0)
         true_end = kwargs.get("end", self.rowcount)
@@ -2464,17 +2604,12 @@ class PrettyTable:
                 objects.append(self.field_names)
         rows = self._get_rows(options)
         if options["fields"]:
-            for row in rows:
-                objects.append(
-                    {
-                        f: d
-                        for f, d in zip(self._field_names, row)
-                        if f in options["fields"]
-                    }
-                )
+            objects.extend(
+                {f: d for f, d in zip(self._field_names, row) if f in options["fields"]}
+                for row in rows
+            )
         else:
-            for row in rows:
-                objects.append(dict(zip(self._field_names, row)))
+            objects.extend(dict(zip(self._field_names, row)) for row in rows)
 
         return json.dumps(objects, **json_options)
 
@@ -2660,15 +2795,14 @@ class PrettyTable:
         lines.append("    <tbody>")
         rows = self._get_rows(options)
         formatted_rows = self._format_rows(rows)
-        aligns: list[str] = []
-        valigns: list[str] = []
-        for field in self._field_names:
-            aligns.append(
-                {"l": "left", "r": "right", "c": "center"}[self._align[field]]
-            )
-            valigns.append(
-                {"t": "top", "m": "middle", "b": "bottom"}[self._valign[field]]
-            )
+        aligns: list[str] = [
+            {"l": "left", "r": "right", "c": "center"}[self._align[field]]
+            for field in self._field_names
+        ]
+        valigns: list[str] = [
+            {"t": "top", "m": "middle", "b": "bottom"}[self._valign[field]]
+            for field in self._field_names
+        ]
         for row in formatted_rows:
             lines.append("        <tr>")
             for field, datum, align, valign in zip(
@@ -2733,7 +2867,6 @@ class PrettyTable:
     def _get_simple_latex_string(self, options: OptionsType) -> str:
         lines: list[str] = []
 
-        wanted_fields = []
         if options["fields"]:
             wanted_fields = [
                 field for field in self._field_names if field in options["fields"]
@@ -2844,12 +2977,9 @@ class PrettyTable:
         options = self._get_options(kwargs)
         lines: list[str] = []
 
-        if (
-            options.get("attributes")
-            and isinstance(options["attributes"], dict)
-            and options["attributes"]
-        ):
-            attr_str = " ".join(f'{k}="{v}"' for k, v in options["attributes"].items())
+        attributes_option = options.get("attributes")
+        if attributes_option and isinstance(attributes_option, dict):
+            attr_str = " ".join(f'{k}="{v}"' for k, v in attributes_option.items())
             lines.append("{| " + attr_str)
         else:
             lines.append('{| class="wikitable"')
@@ -2858,14 +2988,15 @@ class PrettyTable:
         if caption:
             lines.append("|+ " + caption)
 
+        fields_option = options.get("fields")
         if options.get("header"):
             lines.append("|-")
-            headers = []
-            fields_option = options.get("fields")
-            for field in self._field_names:
-                if fields_option is not None and field not in fields_option:
-                    continue
-                headers.append(field)
+            if fields_option is None:
+                headers = self._field_names
+            else:
+                headers = [
+                    field for field in self._field_names if field in fields_option
+                ]
             if headers:
                 header_line = " !! ".join(headers)
                 lines.append("! " + header_line)
@@ -2874,12 +3005,14 @@ class PrettyTable:
         formatted_rows = self._format_rows(rows)
         for row in formatted_rows:
             lines.append("|-")
-            cells = []
-            fields_option = options.get("fields")
-            for field, cell in zip(self._field_names, row):
-                if fields_option is not None and field not in fields_option:
-                    continue
-                cells.append(cell)
+            if fields_option is None:
+                cells = row
+            else:
+                cells = [
+                    cell
+                    for field, cell in zip(self._field_names, row)
+                    if field in fields_option
+                ]
             if cells:
                 lines.append("| " + " || ".join(cells))
 
