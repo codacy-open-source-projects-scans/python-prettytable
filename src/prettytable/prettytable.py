@@ -306,7 +306,7 @@ class PrettyTable:
         valign - default valign for each row (None, "t", "m" or "b")
         reversesort - True or False to sort in descending or ascending order
         oldsortslice - Slice rows before sorting in the "old style"
-        break_on_hyphens - Whether long lines are broken on hypens or not, default: True
+        break_on_hyphens - Whether long lines are broken on hyphens or not, default: True
         """
         self.encoding = kwargs.get("encoding", "UTF-8")
 
@@ -537,7 +537,7 @@ class PrettyTable:
         new = PrettyTable()
         new.field_names = self.field_names
         for attr in self._options:
-            setattr(new, "_" + attr, getattr(self, "_" + attr))
+            setattr(new, f"_{attr}", getattr(self, f"_{attr}"))
         if isinstance(index, slice):
             for row in self._rows[index]:
                 new.add_row(row)
@@ -2234,7 +2234,10 @@ class PrettyTable:
         # Add title
         title = options["title"] or self._title
         if title:
-            lines.append(self._stringify_title(title, options))
+            if self._style != TableStyle.MARKDOWN:
+                lines.append(self._stringify_title(title, options))
+            else:
+                lines.extend([f"**{title}**", ""])
 
         # Add header or top of border
         if options["header"]:
@@ -2289,12 +2292,12 @@ class PrettyTable:
             return ""
         lpad, rpad = self._get_padding_widths(options)
         if options["vrules"] in (VRuleStyle.ALL, VRuleStyle.FRAME):
-            bits = [options[where + "left_junction_char"]]  # type: ignore[literal-required]
+            bits = [options[f"{where}left_junction_char"]]  # type: ignore[literal-required]
         else:
             bits = [options["horizontal_char"]]
         # For tables with no data or fieldnames
         if not self._field_names:
-            bits.append(options[where + "right_junction_char"])  # type: ignore[literal-required]
+            bits.append(options[f"{where}right_junction_char"])  # type: ignore[literal-required]
             return "".join(bits)
         for field, width in zip(self._field_names, self._widths):
             if options["fields"] and field not in options["fields"]:
@@ -2311,12 +2314,12 @@ class PrettyTable:
 
             bits.append(line)
             if options["vrules"] == VRuleStyle.ALL:
-                bits.append(options[where + "junction_char"])  # type: ignore[literal-required]
+                bits.append(options[f"{where}junction_char"])  # type: ignore[literal-required]
             else:
                 bits.append(options["horizontal_char"])
         if options["vrules"] in (VRuleStyle.ALL, VRuleStyle.FRAME):
             bits.pop()
-            bits.append(options[where + "right_junction_char"])  # type: ignore[literal-required]
+            bits.append(options[f"{where}right_junction_char"])  # type: ignore[literal-required]
 
         if options["preserve_internal_border"] and not options["border"]:
             bits = bits[1:-1]
@@ -2652,7 +2655,7 @@ class PrettyTable:
             styling options (True or False)
         escape_data - escapes the text within a data field (True or False)
         xhtml - print <br/> tags if True, <br> tags if False
-        break_on_hyphens - Whether long lines are broken on hypens or not, default: True
+        break_on_hyphens - Whether long lines are broken on hyphens or not, default: True
         """
 
         options = self._get_options(kwargs)
@@ -2876,12 +2879,12 @@ class PrettyTable:
 
         alignments = "".join([self._align[field] for field in wanted_fields])
 
-        begin_cmd = f"\\begin{{tabular}}{{{alignments}}}"
+        begin_cmd = rf"\begin{{tabular}}{{{alignments}}}"
         lines.append(begin_cmd)
 
         # Headers
         if options["header"]:
-            lines.append(" & ".join(wanted_fields) + " \\\\")
+            lines.append(" & ".join(wanted_fields) + r" \\")
 
         # Data
         rows = self._get_rows(options)
@@ -2890,9 +2893,9 @@ class PrettyTable:
             wanted_data = [
                 d for f, d in zip(self._field_names, row) if f in wanted_fields
             ]
-            lines.append(" & ".join(wanted_data) + " \\\\")
+            lines.append(" & ".join(wanted_data) + r" \\")
 
-        lines.append("\\end{tabular}")
+        lines.append(r"\end{tabular}")
 
         return "\r\n".join(lines)
 
@@ -2918,23 +2921,23 @@ class PrettyTable:
             VRuleStyle.ALL,
             VRuleStyle.FRAME,
         ]:
-            alignment_str = "|" + alignment_str + "|"
+            alignment_str = f"|{alignment_str}|"
 
-        begin_cmd = f"\\begin{{tabular}}{{{alignment_str}}}"
+        begin_cmd = rf"\begin{{tabular}}{{{alignment_str}}}"
         lines.append(begin_cmd)
         if options["border"] and options["hrules"] in [
             HRuleStyle.ALL,
             HRuleStyle.FRAME,
         ]:
-            lines.append("\\hline")
+            lines.append(r"\hline")
 
         # Headers
         if options["header"]:
-            lines.append(" & ".join(wanted_fields) + " \\\\")
+            lines.append(" & ".join(wanted_fields) + r" \\")
         if (options["border"] or options["preserve_internal_border"]) and options[
             "hrules"
         ] in [HRuleStyle.ALL, HRuleStyle.HEADER]:
-            lines.append("\\hline")
+            lines.append(r"\hline")
 
         # Data
         rows = self._get_rows(options)
@@ -2944,14 +2947,14 @@ class PrettyTable:
             wanted_data = [
                 d for f, d in zip(self._field_names, row) if f in wanted_fields
             ]
-            lines.append(" & ".join(wanted_data) + " \\\\")
+            lines.append(" & ".join(wanted_data) + r" \\")
             if options["border"] and options["hrules"] == HRuleStyle.ALL:
-                lines.append("\\hline")
+                lines.append(r"\hline")
 
         if options["border"] and options["hrules"] == HRuleStyle.FRAME:
-            lines.append("\\hline")
+            lines.append(r"\hline")
 
-        lines.append("\\end{tabular}")
+        lines.append(r"\end{tabular}")
 
         return "\r\n".join(lines)
 
@@ -2980,13 +2983,13 @@ class PrettyTable:
         attributes_option = options.get("attributes")
         if attributes_option and isinstance(attributes_option, dict):
             attr_str = " ".join(f'{k}="{v}"' for k, v in attributes_option.items())
-            lines.append("{| " + attr_str)
+            lines.append(f"{{| {attr_str}")
         else:
             lines.append('{| class="wikitable"')
 
         caption = options.get("title", self._title)
         if caption:
-            lines.append("|+ " + caption)
+            lines.append(f"|+ {caption}")
 
         fields_option = options.get("fields")
         if options.get("header"):
@@ -2999,7 +3002,7 @@ class PrettyTable:
                 ]
             if headers:
                 header_line = " !! ".join(headers)
-                lines.append("! " + header_line)
+                lines.append(f"! {header_line}")
 
         rows = self._get_rows(options)
         formatted_rows = self._format_rows(rows)
