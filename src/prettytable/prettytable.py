@@ -1423,7 +1423,7 @@ class PrettyTable:
         Arguments:
 
         horizontal_align_char - single character string used to indicate alignment"""
-        return self._bottom_left_junction_char or self.junction_char
+        return self._horizontal_align_char or self.junction_char
 
     @horizontal_align_char.setter
     def horizontal_align_char(self, val: str) -> None:
@@ -2925,7 +2925,6 @@ class PrettyTable:
         # Data
         rows = self._get_rows(options)
         formatted_rows = self._format_rows(rows)
-        rows = self._get_rows(options)
         for row in formatted_rows:
             wanted_data = [
                 d for f, d in zip(self._field_names, row) if f in wanted_fields
